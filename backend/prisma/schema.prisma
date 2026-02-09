@@ -1,0 +1,65 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum LogLevel {
+  DEBUG
+  INFO
+  WARN
+  ERROR
+  FATAL
+}
+
+enum IncidentStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model Log {
+  id         String   @id @default(uuid())
+  service_id String
+  level      LogLevel
+  message    String
+  metadata   Json?
+  timestamp  DateTime
+  created_at DateTime @default(now())
+
+  incident_id String?
+  incident    Incident? @relation(fields: [incident_id], references: [id])
+
+  @@index([service_id, timestamp(sort: Desc)])
+  @@index([level])
+}
+
+model Incident {
+  id          String         @id @default(uuid())
+  title       String
+  status      IncidentStatus @default(OPEN)
+  severity    Severity       @default(MEDIUM)
+  created_at  DateTime       @default(now())
+  updated_at  DateTime       @updatedAt
+
+  logs        Log[]
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      String   @default("USER")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
