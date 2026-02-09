@@ -3,6 +3,8 @@
 > **"Silence is Deadly."**  
 > A centralized observability engine designed to ingest logs, detect anomalies in real-time, and automate incident response for distributed systems.
 
+🔍 **Curious about how this was built?** Check out the [Implementation Journey & Engineering Decisions](./IMPLEMENTATION_JOURNEY.md) for a deep dive into the code and challenges.
+
 ---
 
 ## 🧐 The Problem: Why This Exists
