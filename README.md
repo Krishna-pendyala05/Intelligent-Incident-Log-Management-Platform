@@ -137,6 +137,39 @@ A: This usually means the Prisma Client is out of sync with the schema.
 
 ---
 
+## 🎨 Customization & Usage Guide
+
+Want to adapt this platform for your own needs? Here are the key files you can modify:
+
+### 1. Adjusting Incident Thresholds
+
+By default, the system triggers an incident if **> 5 errors** occur in **60 seconds**.
+
+- **File**: `backend/src/incidents/detection.service.ts`
+- **How to Change**:
+
+  ```typescript
+  // Change the time window (e.g., 5 minutes)
+  const timeWindow = new Date(Date.now() - 5 * 60 * 1000);
+
+  // Change the error count threshold
+  if (recentErrorCount > 20) { ... }
+  ```
+
+### 2. Changing Database Connection
+
+- **File**: `backend/.env`
+- **Parameter**: `DATABASE_URL`
+  - Update the user, password, port, or DB name here.
+  - _Note_: If you change the port here, make sure to update `docker-compose.yml` as well.
+
+### 3. Adding New Log Metadata
+
+- **File**: `backend/src/ingestion/dto/create-log.dto.ts`
+- **Action**: Add new fields to the `CreateLogDto` class to validate extra data (e.g., `user_id`, `request_id`) in your incoming logs.
+
+---
+
 ## 🔮 Future Roadmap
 
 - [ ] **Real-time WebSockets**: Push alerts to the frontend immediately instead of polling.
