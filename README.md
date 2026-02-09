@@ -104,7 +104,7 @@ yarn start:dev
 
 ## 🧠 Challenges & Key Learnings
 
-During the development of this platform, we encountered and solved several engineering challenges:
+During the development of this platform, I encountered and solved several engineering challenges:
 
 1.  **Handling Duplicate User Creation**:
     - _Challenge_: Prisma throws a generic `P2002` error when a user email already exists, causing a 500 server crash.
@@ -130,7 +130,7 @@ A: Another service is using port 3000. The app will try to fallback or fail.
 **Q: Swagger UI says "Failed to fetch".**
 A: This is usually a CORS issue or the server is down.
 
-- _Fix_: We enabled generic CORS in `main.ts`, but ensure your browser isn't blocking local requests.
+- _Fix_: I enabled generic CORS in `main.ts`, but ensure your browser isn't blocking local requests.
 
 **Q: "Invalid `this.prisma.user.create()` invocation".**
 A: This usually means the Prisma Client is out of sync with the schema.

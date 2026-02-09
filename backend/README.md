@@ -57,7 +57,7 @@ The API will be available at `http://localhost:3001` (or port 3000, depending on
 
 ## 🧪 Testing
 
-We have included unit and e2e tests for critical flows.
+I have included unit and e2e tests for critical flows.
 
 ```bash
 # Unit tests
