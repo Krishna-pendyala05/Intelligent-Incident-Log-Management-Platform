@@ -64,29 +64,42 @@ The system operates as a pipeline:
 3.  **Incident Correlation** — On incident creation, all triggering error logs within the detection window are linked to the incident record via `updateMany`, providing full traceability from alert back to root cause.
 
 ```mermaid
-graph TD
-    %% Nodes
-    Client(["👤 Client Traffic"])
-    API["⚡ Ingestion API"]
-    Buffer["📦 Batch Buffer"]
-    DB[("🗄️ PostgreSQL")]
-    Cron(("⏱️ 10s Cron"))
-    Detector["🧠 Detection Engine"]
-    Alert["🚨 Incident Alert"]
+flowchart LR
+    %% 🎨 Styles
+    classDef client fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#0d47a1
+    classDef ingest fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#1b5e20
+    classDef db fill:#eceff1,stroke:#455a64,stroke-width:2px,color:#263238
+    classDef detect fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#4a148c
+    classDef alert fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#b71c1c,stroke-dasharray: 5 5
 
-    %% Flows
-    Client -->|POST /ingest| API
-    API -->|High-Speed Push| Buffer
-    Buffer -->|Flush Every 5s| DB
+    %% 🧩 Nodes
+    Client(["👤 Client Traffic"]) ::: client
+    API["⚡ Ingestion API"] ::: ingest
+    Buffer["📦 Batch Buffer"] ::: ingest
+    DB[("🗄️ PostgreSQL")] ::: db
 
-    subgraph Analysis ["🔍 Background Analysis"]
-        Cron -->|Trigger| Detector
-        Detector -->|"1. Query Baseline (30m)"| DB
-        Detector -->|"2. Compute Z-Score"| Detector
-        Detector -->|"3. Check Threshold (Z > 3)"| Alert
+    subgraph Analysis ["🧠 Background Analysis"]
+        direction TB
+        Cron(("⏱️ 10s Cron")) ::: detect
+        Detector["🔍 Detection Service"] ::: detect
+        Check{"📈 Z > 3?"} ::: detect
     end
 
-    Alert -.->|"4. Correlate Logs"| DB
+    Alert["🚨 Incident Alert"] ::: alert
+
+    %% 🔗 Pipeline Flow (Left to Right)
+    Client -->|POST /ingest| API
+    API -->|Push| Buffer
+    Buffer -->|Flush (5s)| DB
+
+    %% Detection Cycle
+    Cron -->|Wake| Detector
+    Detector -->|"1. Query (30m)"| DB
+    Detector -->|"2. Stats"| Check
+    Check -->|Yes| Alert
+    Check -.->|No| DB
+
+    Alert -.->|"3. Correlate"| DB
 ```
 
 ### Tech Stack
