@@ -2,7 +2,7 @@
 
 > **A High-Performance Backend System for Log Ingestion & Automated Incident Response.**
 
-[![CI](https://github.com/Krishna-pendyala05/Intelligent-Incident-Log-Management-Platform/actions/workflows/ci.yml/badge.svg)](https://github.com/Krishna-pendyala05/Intelligent-Incident-Log-Management-Platform/actions)
+[![CI](https://github.com/Krishna-pendyala05/Intelligent-Incident-Log-Management-Platform/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Krishna-pendyala05/Intelligent-Incident-Log-Management-Platform/actions)
 ![NestJS](https://img.shields.io/badge/nestjs-%23E0234E.svg?style=flat&logo=nestjs&logoColor=white)
 ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=flat&logo=docker&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/typescript-%23007ACC.svg?style=flat&logo=typescript&logoColor=white)
