@@ -1,127 +1,157 @@
-# � Backend API Documentation
+# Backend API — Technical Reference
 
-This directory contains the source code for the NestJS API.
-
-> **Note**: For the high-level project goals and architecture, see the [Root README](../README.md).
+> For high-level project goals and architecture, see the [Root README](../README.md).
 
 ---
 
-## 🏃‍♂️ Development Setup
+## Development Setup
 
 ### Option 1: Docker (Recommended)
 
-Run the entire stack without installing Node.js/Postgres locally.
+Starts the complete stack (API + PostgreSQL) without requiring local Node.js or database installations.
 
 ```bash
-# In the project root
+# Run from the project root directory
 docker-compose up --build
 ```
 
 ### Option 2: Local Development
 
-If you want to run the app natively for debugging:
+To run the API natively for step-through debugging:
 
-1.  **Start Database Only**:
-    ```bash
-    docker-compose up -d db
-    ```
-2.  **Install Dependencies**:
-    ```bash
-    yarn install
-    ```
-3.  **Setup Database**:
-    ```bash
-    # Generate Prisma Client
-    npx prisma generate
-    # Push Schema to DB
-    npx prisma db push
-    ```
-4.  **Run Server**:
-    ```bash
-    yarn start:dev
-    ```
+1. **Start the database container only:**
+
+   ```bash
+   docker-compose up -d db
+   ```
+
+2. **Install dependencies:**
+
+   ```bash
+   yarn install
+   ```
+
+3. **Initialise the database schema:**
+
+   ```bash
+   npx prisma generate   # Generate the Prisma client
+   npx prisma db push    # Push schema to the running database
+   ```
+
+4. **Start the API in watch mode:**
+   ```bash
+   yarn start:dev
+   ```
 
 ---
 
-## 🧪 Testing & Quality
+## Testing & Quality Assurance
 
-I have implemented a comprehensive testing strategy to ensuring reliability.
+The project maintains a multi-layer testing strategy.
 
-### 1. Unit Tests
+### Unit Tests
 
-Tests individual services and controllers with mocked dependencies.
+Validates individual service and controller behaviour using mocked dependencies. All database and external service interactions are isolated via Jest mocks, ensuring tests remain fast and deterministic.
 
 ```bash
-# Ensure you are in the backend directory
 cd backend
 yarn test
 ```
 
-### 2. End-to-End (E2E) Tests
+**Coverage includes:**
 
-Verifies the full flow: _User Register -> Login -> Create Incident -> Ingest Log_.
-_(Requires DB running on port 5433 - handled by `docker-compose up db`)_
+- `DetectionService` — Z-Score calculation, dual-threshold alert conditions, cold-start edge case (σ = 0), lock-skip behaviour
+- `IncidentsService` — CRUD operations with mocked Prisma
+- `AuthService` — JWT generation and credential validation
+- `IngestionService` — Batch buffer accumulation and flush logic
+
+### End-to-End (E2E) Tests
+
+Exercises the full HTTP request lifecycle: user registration → authentication → incident creation → log ingestion. Requires a running PostgreSQL instance (port 5433, provided by `docker-compose up -d db`).
 
 ```bash
-# Ensure DB is running (docker-compose up -d db)
 cd backend
 yarn test:e2e
 ```
 
-### 3. Performance Benchmark
+### Performance Benchmark
 
-Demonstrates the high-throughput capabilities using `autocannon`.
+Measures ingestion throughput and rate-limiter behaviour under high-concurrency flood conditions using `autocannon`.
 
 ```bash
-# From the backend directory
+# From the backend directory (requires the API to be running)
 node scripts/benchmark.js
 ```
 
-#### 📊 How to Interpret Results
+**Interpreting Results:**
 
-You will see different results based on the **Rate Limiter** configuration in `.env`.
+The outcome depends on the `THROTTLE_LIMIT` value in `.env`:
 
-| Scenario                        | Config (`.env`)       | Result                      | Interpretation                                                                                               |
-| :------------------------------ | :-------------------- | :-------------------------- | :----------------------------------------------------------------------------------------------------------- |
-| **A. Security Check** (Default) | `THROTTLE_LIMIT=10`   | **High Failure Rate (429)** | ✅ **SUCCESS**. Use this to prove to recruiters that your API is protected from DDoS attacks.                |
-| **B. Stress Test** (Raw Power)  | `THROTTLE_LIMIT=1000` | **High RPS (~800+)**        | ✅ **SUCCESS**. Use this to prove the system can ingest thousands of logs per second using Batch Processing. |
+| Scenario                          | Config                | Expected Result      | Interpretation                                                                                                                |
+| :-------------------------------- | :-------------------- | :------------------- | :---------------------------------------------------------------------------------------------------------------------------- |
+| **Security Validation** (default) | `THROTTLE_LIMIT=10`   | High 429 rate (~98%) | Rate limiter is functioning correctly under flood conditions — protects against unintentional and malicious request flooding. |
+| **Throughput Test**               | `THROTTLE_LIMIT=1000` | 700–800+ req/s       | Batch buffer is sustaining high ingestion volume without exhausting the database connection pool.                             |
 
-### 4. Interactive Demo (Recruiter Friendly)
+> The production default (`THROTTLE_LIMIT=10`) is intentionally restrictive. When evaluating raw ingestion throughput, set `THROTTLE_LIMIT=1000` to bypass the rate limiter and isolate the ingestion pipeline's performance characteristics.
 
-Want to see the system in action? Run the demo scenario script.
-It simulates:
+👉 **[View Full Benchmark Report](../BENCHMARKS.md)**
 
-1.  **User Registration & Login** (Gets JWT Token)
-2.  **Traffic Simulation** (Sends normal logs)
-3.  **Incident Trigger** (Bursts 15 error logs to trigger detection)
-4.  **Automated Response** (Verifies an Incident was created)
+### End-to-End Demo Script
+
+Simulates a complete operational scenario, demonstrating the system's automated detection and response capabilities.
+
+**Steps executed:**
+
+1. Registers a new user and authenticates to obtain a JWT token.
+2. Sends a stream of normal `INFO` logs to establish a Z-Score baseline.
+3. Sends a burst of **20 `ERROR` logs** in rapid succession — a simulated 3-sigma anomaly.
+4. Polls `GET /incidents` until an incident containing `"Anomaly Detected"` in its title appears, confirming automated detection triggered correctly.
 
 ```bash
-# Install dependencies first (if not done)
-yarn install
-
-# Run the demo
+cd backend
 yarn demo
 ```
 
----
-
-## 📚 API Endpoints
-
-Full interactive documentation is available at **`/api`** (Swagger UI).
-
-### Key Endpoints:
-
-- **Auth**: `POST /auth/login`, `POST /users`
-- **Incidents**: `GET /incidents` (Paginated), `POST /incidents`
-- **Ingestion**: `POST /ingest` (Optimized for high volume)
+> **Note on timing:** Detection runs on a 10-second cron cycle and requires a minimum of 5 historical baseline buckets before statistical analysis begins. If the demo does not detect an incident on the first run, allow approximately 2 minutes for the baseline to accumulate and run again.
 
 ---
 
-## � Folder Structure
+## API Reference
 
-- **`src/ingestion`**: Handles log streams. Implements **Batch Buffering** to reduce DB writes.
-- **`src/incidents`**: Incident management. Includes **Pagination** logic.
-- **`src/common`**: Global filters (Error handling), Guards (Auth), and Interceptors.
-- **`prisma/`**: Database schema and migrations.
-- **`test/`**: E2E test suites.
+Full interactive documentation is available via Swagger UI at **`http://localhost:3000/api`** once the server is running.
+
+### Key Endpoints
+
+| Method  | Path                  | Auth | Description                             |
+| :------ | :-------------------- | :--- | :-------------------------------------- |
+| `POST`  | `/users`              | None | Register a new user                     |
+| `POST`  | `/auth/login`         | None | Authenticate and receive a JWT          |
+| `POST`  | `/ingest`             | None | Ingest a structured log entry           |
+| `GET`   | `/incidents`          | JWT  | List incidents (paginated)              |
+| `GET`   | `/incidents/:id`      | JWT  | Retrieve a single incident              |
+| `GET`   | `/incidents/:id/logs` | JWT  | Retrieve logs correlated to an incident |
+| `PATCH` | `/incidents/:id`      | JWT  | Update incident status or severity      |
+
+---
+
+## Codebase Structure
+
+```
+backend/
+├── src/
+│   ├── ingestion/          # Log ingestion: HTTP handler + in-memory batch buffer
+│   ├── incidents/          # Incident CRUD (IncidentsService) + Z-Score detection (DetectionService)
+│   ├── auth/               # JWT strategy, login handler, authentication guard
+│   ├── users/              # User registration and management
+│   ├── prisma/             # PrismaService wrapper (singleton database client)
+│   └── common/             # Global exception filters, interceptors, validation pipes
+├── prisma/
+│   └── schema.prisma       # Database schema: Log, Incident, User, CronLock models
+├── scripts/
+│   ├── demo_scenario.ts    # End-to-end operational demo
+│   └── benchmark.js        # Autocannon throughput benchmark
+└── test/
+    └── *.e2e-spec.ts       # End-to-end test suites
+```
+
+**Key design note:** `DetectionService` (inside `src/incidents/`) uses the `CronLock` database table to implement distributed mutual exclusion — ensuring only one detection job runs at a time even when multiple API instances are deployed horizontally.

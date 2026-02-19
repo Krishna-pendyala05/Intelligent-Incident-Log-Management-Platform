@@ -1,4 +1,0 @@
-yarn run v1.22.22
-$ jest --config ./test/jest-e2e.json
-[19:04:34.521] [32mINFO[39m (107236): [36mrequest completed[39m [90m{"req":{"id":1,"method":"GET","url":"/","query":{},"params":{},"headers":{"host":"127.0.0.1:59801","accept-encoding":"gzip, deflate","connection":"close"},"remoteAddress":"::ffff:127.0.0.1","remotePort":59802},"res":{"statusCode":200,"headers":{"x-powered-by":"Express","x-ratelimit-limit":"10","x-ratelimit-remaining":"9","x-ratelimit-reset":"60","content-type":"text/html; charset=utf-8","content-length":"12","etag":"W/\"c-Lve95gjOVATpfV8EL5X4nxwjKHE\""}},"responseTime":12}[39m
-info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.

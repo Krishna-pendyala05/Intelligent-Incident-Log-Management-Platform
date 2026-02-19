@@ -1,20 +1,49 @@
-# Dependencies
+# ─── Dependencies ────────────────────────────────────────────────
 node_modules/
-dist/
-.env
 
-# Logs
+# ─── Build output ────────────────────────────────────────────────
+dist/
+
+# ─── Environment secrets ─────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ─── Logs ────────────────────────────────────────────────────────
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+*.log
 
-# OS
+# ─── Debug / temporary output files ─────────────────────────────
+# These are written during local debugging and should never be committed.
+backend/debug_vals.txt
+backend/test_output.txt
+*.txt
+
+# ─── Coverage & test cache ───────────────────────────────────────
+coverage/
+.nyc_output/
+jest-cache/
+.jest/
+
+# ─── OS artefacts ────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+Desktop.ini
 
-# IDEs
+# ─── IDE / editor ────────────────────────────────────────────────
 .vscode/
 .idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
 
-# Prisma
+# ─── Prisma ──────────────────────────────────────────────────────
+# Generated migrations are environment-specific; keep schema.prisma, not the migration history.
 backend/prisma/migrations/
+
+# ─── Docker ──────────────────────────────────────────────────────
+# Docker writes pidfiles and volume data locally; exclude them.
+*.pid

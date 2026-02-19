@@ -1,6 +1,6 @@
 # Intelligent Incident & Log Management Platform 🛡️
 
-> **A High-Performance Backend System for Log Ingestion & Automated Incident Response.**
+> **A high-performance backend system for structured log ingestion, statistical anomaly detection, and automated incident response.**
 
 [![CI](https://github.com/Krishna-pendyala05/Intelligent-Incident-Log-Management-Platform/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Krishna-pendyala05/Intelligent-Incident-Log-Management-Platform/actions)
 ![NestJS](https://img.shields.io/badge/nestjs-%23E0234E.svg?style=flat&logo=nestjs&logoColor=white)
@@ -9,80 +9,95 @@
 
 ---
 
-## 🎯 System Overview
+## System Overview
 
-**Intelligent Incident & Log Management Platform** is a high-performance backend designed to emulate core observability patterns found in enterprise-grade systems.
+**Intelligent Incident & Log Management Platform** is a production-oriented backend that emulates core observability patterns found in enterprise SRE tooling. It handles high-volume structured log ingestion, runs continuous statistical anomaly detection in the background, and automatically creates and correlates incidents — without manual intervention.
 
-It bridges the gap between raw log ingestion and automated incident response, focusing on **scalability**, **security**, and **reliability**.
+### Why "Intelligent"?
 
-### 🧠 Why "Intelligent"?
+The term reflects the detection architecture, not marketing. Most log management systems are passive: they store data and wait for a human (or a static rule) to identify problems. This system is **active** — it continuously models normal system behavior and flags statistically significant deviations automatically.
 
-Unlike passive log storage (e.g., standard ELK stacks), this system is **active**. It runs a background **Anomaly Detection Engine** that monitors log streams in real-time. If it detects critical patterns (like a sudden spike in 500-series errors), it **automatically correlates them into an Incident** and alerts the team, reducing Mean Time To Resolution (MTTR).
+The detection engine uses **Z-Score analysis** to establish a rolling 30-minute baseline of per-minute error rates. If the current error rate deviates by more than **3 standard deviations** from the historical mean (a 3-sigma event, representing 99.7% statistical confidence of anomaly), the system automatically creates an Incident record and associates the triggering logs with it. This eliminates both the false positives of static threshold alerting (triggering on low-traffic noise) and the false negatives (missing proportional degradation under high traffic).
 
-### 🚀 Engineering Highlights
+### Engineering Highlights
 
-- **High-Throughput Engineering**: Implemented **Batch Processing** buffers to handle thousands of logs per second without crashing the database.
-- **Database Optimization**: Solved **N+1 Query** performance issues and implemented **Pagination** for scalable data retrieval.
-- **DevOps Lifecycle**: Built a **Multi-Stage Dockerfile** (reducing image size) and set up **GitHub Actions CI** for automated testing.
-- **Security Best Practices**: Implemented **JWT Authentication**, **Rate Limiting**, and secure password hashing.
-
----
-
-## 📚 Documentation Map
-
-To keep things organized, I've separated the documentation:
-
-| Document                                                  | Purpose                                                                                                                               |
-| :-------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------ |
-| **[Backend Setup Guide](./backend/README.md)**            | Technical manual. How to run, test, and use the API locally.                                                                          |
-| **[Implementation Journey](./IMPLEMENTATION_JOURNEY.md)** | **Deep Dive**. A diary of the engineering challenges I faced (e.g., _Fixing N+1 Queries_, _Docker Networking_) and how I solved them. |
+- **Statistical Anomaly Detection**: A Z-Score engine with a 30-minute rolling baseline and a dual-threshold alert condition (`Z > 3.0` AND `count > 5`) prevents both false positives from noise and false negatives from proportional degradation — without manual tuning.
+- **High-Throughput Ingestion**: An in-memory batch buffer decouples HTTP receipt from database writes. Incoming logs are flushed via `createMany` every 5 seconds, reducing database write frequency by ~98% under load.
+- **Database Query Optimization**: Pagination (`skip`/`take`) and removal of eager log loading from list endpoints reduced `GET /incidents` response time from ~500ms to <20ms.
+- **Containerized Deployment**: A multi-stage Dockerfile separates build tooling from the runtime layer, reducing image size by ~80%. Docker Compose service networking allows reliable inter-container communication.
+- **Security**: JWT-based authentication, global rate limiting via `ThrottlerGuard`, password hashing with `bcrypt`, and automatic response sanitization to prevent credential leakage.
 
 ---
 
-## 🚀 Performance & Scalability
+## Documentation Map
 
-We rigorously benchmark our system to ensure reliability under load.
+| Document                                                  | Purpose                                                                                               |
+| :-------------------------------------------------------- | :---------------------------------------------------------------------------------------------------- |
+| **[Backend Setup Guide](./backend/README.md)**            | Technical reference: how to run, test, benchmark, and interact with the API locally.                  |
+| **[Implementation Journey](./IMPLEMENTATION_JOURNEY.md)** | Engineering deep-dive: the problems, trade-offs, and design decisions made during development.        |
+| **[Benchmark Report](./BENCHMARKS.md)**                   | Measured performance data: ingestion throughput, latency distribution, and detection engine overhead. |
 
-| Metric         | Result                                            |
-| :------------- | :------------------------------------------------ |
-| **Throughput** | **1,150+ Req/Sec** handled                        |
-| **Latency**    | **86ms** average under load                       |
-| **Security**   | **95%+** of flood traffic blocked by Rate Limiter |
+---
+
+## Performance & Scalability
+
+The system has been benchmarked under realistic flood conditions using `autocannon` (100 concurrent connections, 10-second duration).
+
+| Metric         | Result                                              |
+| :------------- | :-------------------------------------------------- |
+| **Throughput** | **722 req/s** average under 100 concurrent clients  |
+| **Latency**    | **137ms** average · **370ms** p99                   |
+| **Security**   | **98.6%** of flood traffic rejected by rate limiter |
+
+> The majority of rejected requests are `429 Too Many Requests` from `ThrottlerGuard` — this is intentional. The purpose of the benchmark is to demonstrate that the system remains stable under flood conditions, not to maximize raw throughput.
 
 👉 **[View Full Benchmark Report](./BENCHMARKS.md)**
 
 ---
 
-## 🛠️ Architecture Overview
+## Architecture Overview
 
-The system allows services to send logs via HTTP. It aggregates them, checks for critical patterns (like high error rates), and automatically creates Incidents for the DevOps team.
+The system operates as a pipeline:
+
+1. **Ingestion** — Services push structured log payloads to `POST /ingest`. An in-memory buffer accumulates entries and flushes them to PostgreSQL in batches every 5 seconds.
+2. **Detection** — A background cron job runs every 10 seconds. It queries the last 30 minutes of per-minute error rates, computes the Z-Score for the current window, and creates an Incident if the dual threshold (Z > 3.0 and count > 5) is breached.
+3. **Incident Correlation** — On incident creation, all triggering error logs within the detection window are linked to the incident record via `updateMany`, providing full traceability from alert back to root cause.
 
 ![System Architecture](assets/architecture.png)
 
 ### Tech Stack
 
-- **Core**: NestJS (Node.js) + TypeScript
-- **Database**: PostgreSQL + Prisma ORM
-- **DevOps**: Docker Compose + GitHub Actions
+| Layer                | Technology                    |
+| :------------------- | :---------------------------- |
+| **API Framework**    | NestJS (Node.js) + TypeScript |
+| **Database**         | PostgreSQL via Prisma ORM     |
+| **Auth**             | JWT (passport-jwt) + bcrypt   |
+| **Containerization** | Docker + Docker Compose       |
+| **CI/CD**            | GitHub Actions                |
 
 ---
 
-## ⚡ Quick Start
+## Quick Start
 
-You can spin up the entire system (Backend + Database) with a single command using Docker.
+The entire stack (API + database) can be started with a single Docker Compose command.
 
 ```bash
 # Clone the repository
 git clone https://github.com/Krishna-pendyala05/Intelligent-Incident-Log-Management-Platform.git
-cd "Intelligent Incident & Log Management Platform"
+cd "Intelligent-Incident-Log-Management-Platform"
 
-# Start services
+# Start all services
 docker-compose up --build
 ```
 
-### 🎮 Want to play with it?
+Once running:
 
-Run the interactive demo script to simulate traffic and incidents:
+- **API**: `http://localhost:3000`
+- **Swagger UI**: `http://localhost:3000/api`
+
+### End-to-End Demo
+
+The demo script simulates authenticated traffic, triggers a statistical anomaly, and verifies automatic incident creation:
 
 ```bash
 cd backend
@@ -90,45 +105,42 @@ yarn install
 yarn demo
 ```
 
-- **API URL**: `http://localhost:3000`
-- **Swagger Docs**: `http://localhost:3000/api`
+---
+
+## Troubleshooting
+
+### "Docker daemon is not running"
+
+Open **Docker Desktop** and wait for the engine to reach a running state (green status icon), then retry `docker-compose up`.
+
+### "Port 3000 or 5432 already in use"
+
+Another process is bound to the required port.
+
+```bash
+# Windows
+npx kill-port 3000 5432
+
+# macOS / Linux
+lsof -i :3000 | awk 'NR>1 {print $2}' | xargs kill -9
+
+# Clean up stale Docker containers
+docker-compose down
+```
+
+### "Invalid Prisma client" / schema mismatch
+
+The generated Prisma client is out of sync with the schema. Regenerate it:
+
+```bash
+cd backend
+npx prisma generate
+```
 
 ---
 
-## 🔧 Troubleshooting & Common Issues
+## Author
 
-### 1. "Docker Error: error during connect..."
-
-**Error:** `error during connect: This error may indicate that the docker daemon is not running.`
-
-- **Cause:** Docker Desktop is not started.
-- **Solution:** Open **Docker Desktop** on your machine and wait for the engine to start (green icon). Then run `docker-compose up` again.
-
-### 2. "Port 3000/5432 already in use"
-
-**Error:** `Bind for 0.0.0.0:3000 failed: port is already allocated`
-
-- **Cause:** Another application (or a previous instance of this app) is using these ports.
-- **Solution:**
-  - **Windows**: `npx kill-port 3000 5432`
-  - **Mac/Linux**: `lsof -i :3000` then `kill -9 <PID>`
-  - **Docker**: Run `docker-compose down` to clean up old containers.
-
-### 3. "Prisma Client not initialized"
-
-**Error:** `Invalid 'prisma.user.create()'`
-
-- **Cause:** The database schema changed but the client wasn't updated.
-- **Solution:**
-  ```bash
-  cd backend
-  npx prisma generate
-  ```
-
----
-
-## 👤 Author
-
-**Murali Krishna Pendyala**  
-_Software Engineer_  
+**Murali Krishna Pendyala**
+_Software Engineer_
 [LinkedIn](https://linkedin.com/in/p-muralikrishna) | [GitHub](https://github.com/Krishna-pendyala05)
