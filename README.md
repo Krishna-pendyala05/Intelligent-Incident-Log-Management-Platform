@@ -81,15 +81,15 @@ graph LR
     Alert["🚨 Incident Alert"]
 
     %% Flows
-    Client -->|POST /ingest| API
-    API -->|High-Speed Push| Buffer
-    Buffer -->|Flush (5s)| DB
+    Client -->|"POST /ingest"| API
+    API -->|"High-Speed Push"| Buffer
+    Buffer -->|"Flush (5s)"| DB
 
-    Cron -->|Trigger| Detector
+    Cron -->|"Trigger"| Detector
     Detector -->|"1. Query (30m)"| DB
     Detector -->|"2. Stats"| Check
-    Check -->|Yes| Alert
-    Check -.->|No| DB
+    Check -->|"Yes"| Alert
+    Check -.->|"No"| DB
 
     Alert -.->|"3. Correlate"| DB
 ```
