@@ -63,7 +63,31 @@ The system operates as a pipeline:
 2. **Detection** — A background cron job runs every 10 seconds. It queries the last 30 minutes of per-minute error rates, computes the Z-Score for the current window, and creates an Incident if the dual threshold (Z > 3.0 and count > 5) is breached.
 3. **Incident Correlation** — On incident creation, all triggering error logs within the detection window are linked to the incident record via `updateMany`, providing full traceability from alert back to root cause.
 
-![System Architecture](assets/architecture.png)
+```mermaid
+graph TD
+    %% Nodes
+    Client([Client Services])
+    API[Ingestion API]
+    Buffer[In-Memory Batch Buffer]
+    DB[(PostgreSQL Database)]
+    Cron((Cron Job 10s))
+    Detector[Detection Service]
+    Alert([Incident Alert])
+
+    %% Flows
+    Client -->|POST /ingest| API
+    API -->|Push| Buffer
+    Buffer -->|Flush Every 5s| DB
+
+    subgraph Detection Engine [Background Z-Score Engine]
+        Cron -->|Trigger| Detector
+        Detector -->|1. Aggregate Baseline (30m)| DB
+        Detector -->|2. Compute Z-Score| Detector
+        Detector -->|3. Check Threshold (Z > 3.0)| Decision{Anomaly?}
+        Decision -->|Yes| DB
+        Decision -->|Yes| Alert
+    end
+```
 
 ### Tech Stack
 
