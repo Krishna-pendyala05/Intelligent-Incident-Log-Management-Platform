@@ -59,44 +59,34 @@ The system has been benchmarked under realistic flood conditions using `autocann
 
 The system operates as a pipeline:
 
-1. **Ingestion** — Services push structured log payloads to `POST /ingest`. An in-memory buffer accumulates entries and flushes them to PostgreSQL in batches every 5 seconds.
+1.  **Ingestion** — Services push structured log payloads to `POST /ingest`. An in-memory buffer accumulates entries and flushes them to PostgreSQL in batches every 5 seconds.
+2.  **Detection** — A background cron job runs every 10 seconds. It queries the last 30 minutes of per-minute error rates, computes the Z-Score for the current window, and creates an Incident if the dual threshold (Z > 3.0 and count > 5) is breached.
+3.  **Incident Correlation** — On incident creation, all triggering error logs within the detection window are linked to the incident record via `updateMany`, providing full traceability from alert back to root cause.
 
 ```mermaid
-flowchart TD
-    %% 🎨 Visual Styles
-    classDef client fill:#E3F2FD,stroke:#1565C0,stroke-width:2px,color:#0D47A1
-    classDef ingest fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px,color:#1B5E20
-    classDef db fill:#ECEFF1,stroke:#455A64,stroke-width:2px,color:#263238
-    classDef detect fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px,color:#4A148C
-    classDef alert fill:#FFEBEE,stroke:#C62828,stroke-width:2px,color:#B71C1C,stroke-dasharray: 5 5
+graph TD
+    %% Nodes
+    Client(["👤 Client Traffic"])
+    API["⚡ Ingestion API"]
+    Buffer["📦 Batch Buffer"]
+    DB[("🗄️ PostgreSQL")]
+    Cron(("⏱️ 10s Cron"))
+    Detector["🧠 Detection Engine"]
+    Alert["🚨 Incident Alert"]
 
-    %% 🧩 Nodes
-    Client(["👤 Client Traffic"]) ::: client
-    API["⚡ Ingestion API"] ::: ingest
-    Buffer["📦 Batch Buffer"] ::: ingest
-    DB[("🗄️ PostgreSQL")] ::: db
+    %% Flows
+    Client -->|POST /ingest| API
+    API -->|High-Speed Push| Buffer
+    Buffer -->|Flush Every 5s| DB
 
-    subgraph Engine ["🧠 Detection Engine"]
-        direction TB
-        Cron(("⏱️ 10s")) ::: detect
-        Service["🔍 Analysis Service"] ::: detect
-        Logic{"📈 Z > 3.0?"} ::: detect
+    subgraph Analysis ["🔍 Background Analysis"]
+        Cron -->|Trigger| Detector
+        Detector -->|"1. Query Baseline (30m)"| DB
+        Detector -->|"2. Compute Z-Score"| Detector
+        Detector -->|"3. Check Threshold (Z > 3)"| Alert
     end
 
-    Incident(["🚨 Incident Alert"]) ::: alert
-
-    %% 🔗 Flows
-    Client -->|POST /ingest| API
-    API -->|Push| Buffer
-    Buffer -->|Flush (5s)| DB
-
-    Cron -->|Trigger| Service
-    Service -->|"1. Query Baseline (30m)"| DB
-    Service -->|"2. Compute Z-Score"| Logic
-    Logic -->|Yes| Incident
-    Logic -.->|No| DB
-
-    Incident -.->|"3. Correlate Logs"| DB
+    Alert -.->|"4. Correlate Logs"| DB
 ```
 
 ### Tech Stack
