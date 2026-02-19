@@ -131,4 +131,4 @@ yarn demo
 
 **Murali Krishna Pendyala**  
 _Software Engineer_  
-[LinkedIn](https://linkedin.com/in/your-profile) | [GitHub](https://github.com/Krishna-pendyala05)
+[LinkedIn](https://linkedin.com/in/p-muralikrishna) | [GitHub](https://github.com/Krishna-pendyala05)
